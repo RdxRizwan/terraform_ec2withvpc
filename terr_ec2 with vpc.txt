@@ -1,0 +1,102 @@
+provider "aws" {
+  region     = "ap-south-1a"
+  access_key = "AKIARCGJPYAB6UZDNREZ"
+  secret_key = "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"
+}
+############ vpc block ##########
+
+resource "aws_vpc" "c4c_vpc" {
+  cidr_block = "10.0.0.0/16"
+}
+
+############# internet gateway ####
+
+resource "aws_internet_gateway" "c4c_igw" {
+  vpc_id = aws_vpc.c4c_vpc.id
+
+  tags = {
+    Name = "c4c_igw"
+  }
+}
+
+
+################### subnet ##################
+
+
+resource "aws_subnet" "c4c_subnet" {
+  vpc_id     = aws_vpc.c4c_vpc.id
+  cidr_block = "10.0.1.0/24"
+
+  tags = {
+    Name = "c4c_subnet"
+  }
+}
+
+################ route table ############
+
+resource "aws_route_table" "c4c_rt" {
+  vpc_id = aws_vpc.c4c_vpc.id
+
+  route = []
+
+  tags = {
+    Name = "c4c_rt"
+  }
+}
+
+############ route #############
+
+
+resource "aws_route" "c4c_route" {
+  route_table_id         = aws_route_table.c4c_rt.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.c4c_igw.id
+  depends_on             = [aws_route_table.c4c_rt]
+}
+
+############### security grp ##############
+
+resource "aws_security_group" "c4c_sg" {
+  name        = "allow_all_traffic"
+  description = "Allow TLS inbound traffic"
+  vpc_id      = aws_vpc.c4c_vpc.id
+
+  ingress {
+    description      = "All traffic"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = null
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = {
+    Name = "c4c_sg"
+  }
+}
+
+################ route association ######
+
+resource "aws_route_table_association" "a" {
+  subnet_id      = aws_subnet.c4c_subnet.id
+  route_table_id = aws_route_table.c4c_rt.id
+}
+
+################ ec2 ###############
+
+resource "aws_instance" "c4c_instance" {
+  ami           = "ami-079b5e5b3971bd10d"
+  instance_type = "t2.micro"
+  subnet_id     = aws_subnet.c4c_subnet.id
+  tags = {
+    Name = "vscode_instance"
+  }
+}
